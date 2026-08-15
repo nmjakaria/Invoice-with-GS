@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ledger — Invoice Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      /* ---- Design tokens ---- */
+      --ink: #1B2430;
+      --ink-soft: #566173;
+      --paper: #FFFFFF;
+      --canvas: #EEF2F6;
+      --rule: #DCE3EB;
+      --teal: #0E6E5C;
+      /* paid / positive / brand */
+      --teal-soft: #E4F2EE;
+      --amber: #B5650B;
+      /* unpaid */
+      --amber-soft: #FBEEE0;
+      --brick: #A23B2E;
+      /* overdue */
+      --brick-soft: #F7E7E4;
+
+      --display: 'Fraunces', Georgia, serif;
+      --body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--teal);
+      outline-offset: 2px;
+    }
+
+    /* ---- Shell ---- */
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 236px;
+      flex-shrink: 0;
+      background: var(--paper);
+      border-right: 1px solid var(--rule);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 0 8px 24px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .brand-mark {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink-soft);
+      margin-bottom: 2px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .nav-item:hover {
+      background: var(--canvas);
+      color: var(--ink);
+    }
+
+    .nav-item.active {
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-weight: 600;
+    }
+
+    .nav-item svg {
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px 8px 0;
+      border-top: 1px solid var(--rule);
+      font-size: 11px;
+      color: var(--ink-soft);
+      line-height: 1.5;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      padding: 22px 32px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--rule);
+      background: var(--paper);
+    }
+
+    .page-title {
+      font-family: var(--display);
+      font-size: 26px;
+      font-weight: 600;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    .content {
+      padding: 28px 32px 60px;
+      flex: 1;
+    }
+
+    .preview-banner {
+      background: var(--amber-soft);
+      color: var(--amber);
+      border-bottom: 1px solid rgba(181, 101, 11, 0.25);
+      padding: 10px 32px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .preview-banner em {
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--ink);
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover {
+      opacity: 0.85;
+    }
+
+    .btn-teal {
+      background: var(--teal);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--rule);
+    }
+
+    .btn-ghost:hover {
+      background: var(--canvas);
+      opacity: 1;
+    }
+
+    .btn-sm {
+      padding: 6px 11px;
+      font-size: 12.5px;
+    }
+
+    /* ---- Cards / ledger texture ---- */
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .ledger-texture {
+      background-image: radial-gradient(var(--rule) 1px, transparent 1px);
+      background-size: 14px 14px;
+      background-position: -6px -6px;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-label {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-family: var(--display);
+      font-size: 30px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    .stat-sub {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 4px;
+    }
+
+    .stat-accent {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .dash-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 14px;
+    }
+
+    /* ---- Chart ---- */
+    .chart-wrap {
+      padding: 4px 4px 0;
+    }
+
+    .bar-label {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      fill: var(--ink-soft);
+    }
+
+    .bar-value {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      fill: var(--ink);
+      font-weight: 600;
+    }
+
+    /* ---- Stamp badge (signature element) ---- */
+    .stamp {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 3px;
+      border: 1.5px double currentColor;
+      transform: rotate(-3deg);
+      white-space: nowrap;
+    }
+
+    .stamp-paid {
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .stamp-unpaid {
+      color: var(--amber);
+      background: var(--amber-soft);
+      transform: rotate(2deg);
+    }
+
+    .stamp-overdue {
+      color: var(--brick);
+      background: var(--brick-soft);
+      transform: rotate(-2deg);
+    }
+
+    /* ---- Table ---- */
+    .table-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      font-size: 13.5px;
+      background: var(--paper);
+    }
+
+    .filter-select {
+      padding: 9px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      font-size: 13.5px;
+      background: var(--paper);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-soft);
+      font-weight: 600;
+      padding: 0 10px 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    tbody td {
+      padding: 12px 10px;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--rule);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: var(--canvas);
+    }
+
+    .mono {
+      font-family: var(--mono);
+    }
+
+    .amount {
+      font-family: var(--mono);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .data-diagnostic {
+      margin: 14px auto 0;
+      max-width: 560px;
+      padding: 8px 12px;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--amber);
+      background: var(--amber-soft);
+      border: 1px solid rgba(181, 101, 11, 0.25);
+      border-radius: 7px;
+      overflow-wrap: break-word;
+    }
+
+    /* ---- Form ---- */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field {
+      margin-bottom: 4px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      margin-bottom: 5px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      font-size: 14px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      border-color: var(--teal);
+    }
+
+    .items-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      text-align: left;
+      padding: 0 8px 8px;
+    }
+
+    .items-table td {
+      padding: 6px 8px;
+    }
+
+    .items-table input {
+      padding: 7px 9px;
+      font-size: 13.5px;
+    }
+
+    .row-amount {
+      font-family: var(--mono);
+      font-weight: 600;
+      text-align: right;
+      padding-right: 4px;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--brick);
+      font-size: 16px;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .remove-btn:hover {
+      background: var(--brick-soft);
+    }
+
+    .totals-box {
+      margin-left: auto;
+      width: 300px;
+      margin-top: 12px;
+    }
+
+    .totals-box .line {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      font-size: 13.5px;
+    }
+
+    .totals-box .line input {
+      width: 90px;
+      text-align: right;
+      padding: 5px 8px;
+      font-size: 13.5px;
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+    }
+
+    .totals-box .grand {
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 20px;
+      border-top: 1px solid var(--rule);
+      margin-top: 6px;
+      padding-top: 12px;
+    }
+
+    .invoice-badge {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--teal);
+      background: var(--teal-soft);
+      padding: 5px 12px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    /* ---- New invoice: two-column form layout ---- */
+    .form-layout {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .form-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-col-side {
+      position: sticky;
+      top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-col-main {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .form-col-side {
+        position: static;
+      }
+    }
+
+    .form-card .card-header {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 16px;
+    }
+
+    .form-card .card-ic {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border-radius: 9px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .form-card .card-title {
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 15.5px;
+    }
+
+    .form-card .card-hint {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 1px;
+    }
+
+    .items-table input {
+      width: 100%;
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13.5px;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    .items-table input:focus {
+      border-color: var(--teal);
+      outline: none;
+    }
+
+    .items-table th.th-right {
+      text-align: right;
+    }
+
+    .notes-input {
+      width: 100%;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: var(--paper);
+      color: var(--ink);
+      resize: vertical;
+    }
+
+    .notes-input:focus {
+      border-color: var(--teal);
+      outline: none;
+    }
+
+    .link-spreadsheet {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .link-note {
+      margin: 8px 0 0;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+    }
+
+    .link-note em {
+      font-style: normal;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .link-note strong {
+      color: var(--ink);
+    }
+
+    .mini-preview {
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--paper);
+    }
+
+    .mini-preview>div>.a4-sheet {
+      box-shadow: none;
+    }
+
+    /* ---- Printable A4 invoice document ---- */
+    .a4-sheet {
+      position: relative;
+      width: 210mm;
+      min-height: 296mm;
+      background: #fff;
+      color: var(--ink);
+      padding: 13mm 15mm 12mm;
+      font-size: 12px;
+      box-shadow: 0 8px 34px rgba(27, 36, 48, 0.18);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .a4-sheet::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 9px;
+      background: var(--teal);
+    }
+
+    .inv-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .inv-head-right {
+      text-align: right;
+    }
+
+    .inv-brand {
+      font-family: var(--display);
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .inv-tagline {
+      font-size: 10px;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      margin-top: 2px;
+    }
+
+    .inv-doc-title {
+      font-family: var(--display);
+      font-size: 32px;
+      font-weight: 600;
+    }
+
+    .inv-no {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    .inv-stamp {
+      margin-top: 8px;
+    }
+
+    .inv-fromto {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 26px;
+      padding: 18px 0;
+    }
+
+    .inv-block .inv-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--ink-soft);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .inv-org {
+      font-weight: 700;
+      font-size: 13.5px;
+      margin-bottom: 2px;
+    }
+
+    .inv-block>div:not(.inv-label):not(.inv-org) {
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+
+    .inv-meta {
+      display: flex;
+      gap: 40px;
+      background: var(--canvas);
+      border-radius: 9px;
+      padding: 11px 16px;
+    }
+
+    .inv-meta-item span {
+      display: block;
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-soft);
+      margin-bottom: 2px;
+    }
+
+    .inv-meta-item strong {
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    .inv-items-wrap {
+      margin-top: 18px;
+      flex: 1;
+    }
+
+    table.inv-items {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table.inv-items thead th {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--ink-soft);
+      font-weight: 600;
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    table.inv-items tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--rule);
+      font-size: 12px;
+    }
+
+    table.inv-items td.num {
+      text-align: center;
+    }
+
+    table.inv-items td.amt {
+      text-align: right;
+    }
+
+    .inv-lower {
+      display: flex;
+      justify-content: space-between;
+      gap: 26px;
+      margin-top: 20px;
+    }
+
+    .inv-notes {
+      max-width: 44%;
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      line-height: 1.5;
+    }
+
+    .inv-totals {
+      width: 255px;
+    }
+
+    .inv-totals .line {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .inv-totals .line.grand {
+      border-top: 2px solid var(--ink);
+      margin-top: 7px;
+      padding-top: 9px;
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .inv-foot {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--ink-soft);
+    }
+
+    /* ---- Invoice viewer modal ---- */
+    .invoice-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(27, 36, 48, 0.55);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .invoice-modal {
+      background: var(--canvas);
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 920px;
+      height: 100%;
+      box-shadow: 0 20px 60px rgba(27, 36, 48, 0.4);
+    }
+
+    .print-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--paper);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .toolbar-id {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13.5px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn.icon-only {
+      padding: 6px 9px;
+    }
+
+    .sheet-scroll {
+      flex: 1;
+      overflow: auto;
+      padding: 26px 24px 46px;
+    }
+
+    /* ---- Print: only the invoice document, A4 ---- */
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      html,
+      body {
+        background: #fff !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .app-shell {
+        display: none !important;
+      }
+
+      .invoice-modal-overlay {
+        position: static !important;
+        background: #fff !important;
+        backdrop-filter: none !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+
+      .invoice-modal {
+        max-width: none !important;
+        height: auto !important;
+        margin: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+      }
+
+      .print-toolbar {
+        display: none !important;
+      }
+
+      .sheet-scroll {
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+
+      .a4-sheet {
+        box-shadow: none !important;
+        margin: 0 auto !important;
+        min-height: 296mm;
+      }
+
+      .inv-items tr,
+      .inv-lower,
+      .inv-foot {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--ink);
+      color: #fff;
+      padding: 13px 18px;
+      border-radius: 9px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(27, 36, 48, 0.25);
+      z-index: 100;
+      max-width: 320px;
+    }
+
+    .toast.err {
+      background: var(--brick);
+    }
+
+    .toast.ok {
+      background: var(--teal);
+    }
+
+    @media (max-width: 700px) {
+      .sidebar {
+        width: 72px;
+        padding: 20px 8px;
+      }
+
+      .brand-sub,
+      .nav-label {
+        display: none;
+      }
+
+      .nav-item {
+        justify-content: center;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .content {
+        padding: 20px 16px 40px;
+      }
+
+      .topbar {
+        padding: 18px 16px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root">
+    <div id="boot-status"
+      style="max-width:480px;margin:80px auto;text-align:center;font-family:sans-serif;color:#566173;">
+      Loading dashboard…
+    </div>
+  </div>
+
+  <script>
+    // ---- Boot diagnostics: if anything below fails to load or throws,
+    // show WHY instead of leaving a blank white page. ----
+    var __bootTimer = setTimeout(function () {
+      showBootError('The app is taking a long time to load. Something below may be blocked by your network.');
+    }, 8000);
+
+    function showBootError(msg) {
+      var el = document.getElementById('boot-status');
+      if (!el) return;
+      el.innerHTML =
+        '<strong style="color:#A23B2E;">Something did not load</strong><br><br>' +
+        msg +
+        '<br><br><span style="font-size:12px;">Open your browser console (F12 → Console) for the exact error, ' +
+        'or confirm your network allows cdnjs.cloudflare.com and unpkg.com.</span>';
+    }
+
+    window.addEventListener('error', function (e) {
+      showBootError((e && e.message) ? e.message : 'An unknown script error occurred.');
+    });
+
+    window.__clearBootTimer = function () { clearTimeout(__bootTimer); };
+  </script>
+
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"
+    onerror="showBootError('Could not load React from cdnjs.cloudflare.com. Check your network or firewall.')"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"
+    onerror="showBootError('Could not load ReactDOM from cdnjs.cloudflare.com. Check your network or firewall.')"></script>
+  <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"
+    onerror="showBootError('Could not load Babel from unpkg.com. Check your network or firewall.')"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useCallback, useMemo } = React;
+
+    /* Currency symbol is now driven by Settings (see applySettings below) */
+    let CURRENCY_SYMBOL = '$';
+    let PREVIEW_MODE = false;
+    const fmtNum = (n) => (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmt = (n) => CURRENCY_SYMBOL + fmtNum(n);
+    const fmtWith = (sym) => (n) => sym + fmtNum(n);
+
+    /* ---- google.script.run wrapped as a Promise, with a browser-preview fallback ---- */
+    function gasCall(fnName, ...args) {
+      return new Promise((resolve, reject) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler((err) => reject(err))
+          [fnName](...args);
+        } else {
+          console.warn('google.script.run unavailable — running in preview mode:', fnName, args);
+          PREVIEW_MODE = true;
+          resolve(mockData(fnName));
+        }
+      });
+    }
+
+    function mockData(fnName) {
+      if (fnName === 'getDashboardStats') {
+        return {
+          totalRevenue: 4820, outstanding: 1260, overdueCount: 2, overdueAmount: 540,
+          invoiceCount: 14,
+          monthlySeries: [
+            { month: 'Mar', total: 620 }, { month: 'Apr', total: 910 }, { month: 'May', total: 740 },
+            { month: 'Jun', total: 1180 }, { month: 'Jul', total: 860 }, { month: 'Aug', total: 1510 }
+          ]
+        };
+      }
+      if (fnName === 'getAllInvoices') return JSON.stringify([]);
+      if (fnName === 'previewNextInvoiceNumber') return 'INV-1001';
+      if (fnName === 'getSettings') return mockSettings();
+      if (fnName === 'getDataInfo') return { sheetName: 'n/a (preview mode)', sheetCount: 0, headerRow: [], dataRows: 0 };
+      return { success: true };
+    }
+
+    const mockSettings = () => ({
+      'Company Name': 'Ledger Studio',
+      'Tagline': 'Invoicing for modern business',
+      'Currency Symbol': '$',
+      'Company Email': 'billing@ledger.studio',
+      'Company Address': '128 Commerce Street, Springfield',
+      'Invoice Prefix': 'INV-',
+      'Footer': 'Thank you for your business',
+      'Spreadsheet ID': ''
+    });
+
+    /* ---------------- Icons (hand-drawn line set, no external icon lib) ---------------- */
+    const IconDash = (p) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />
+        <rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" />
+      </svg>
+    );
+    const IconList = (p) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M8 6h13M8 12h13M8 18h13" /><circle cx="3.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
+        <circle cx="3.5" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="3.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
+      </svg>
+    );
+    const IconPlus = (p) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" />
+      </svg>
+    );
+    const IconDoc = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4" /><path d="M10 12h5M10 16h5" />
+      </svg>
+    );
+    const IconUser = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5" />
+      </svg>
+    );
+    const IconItems = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </svg>
+    );
+    const IconNotes = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" />
+      </svg>
+    );
+    const IconEye = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="2.8" />
+      </svg>
+    );
+    const IconCalc = (p) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 7h6M9 12h.01M13 12h.01M9 16h.01M13 16h.01M17 12h.01M17 16h.01" />
+      </svg>
+    );
+    const IconPrint = (p) => (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M7 8V3h10v5" /><rect x="4" y="8" width="16" height="8" rx="1.5" /><path d="M7 14h10v7H7z" />
+      </svg>
+    );
+    const IconDownload = (p) => (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M12 4v11M8 11l4 4 4-4" /><path d="M5 19h14" />
+      </svg>
+    );
+    const IconClose = (p) => (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
+    );
+    const IconCheck = (p) => (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}>
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    );
+    const IconSettings = (p) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
+      </svg>
+    );
+
+    /* ---------------- Stamp badge (signature element) ---------------- */
+    function StampBadge({ status, dueDate }) {
+      const isOverdue = status !== 'Paid' && dueDate && new Date(dueDate) < new Date();
+      if (status === 'Paid') return <span className="stamp stamp-paid">Paid</span>;
+      if (isOverdue) return <span className="stamp stamp-overdue">Overdue</span>;
+      return <span className="stamp stamp-unpaid">Unpaid</span>;
+    }
+
+    /* ---------------- Bar chart (hand-rolled SVG, no chart lib) ---------------- */
+    function RevenueChart({ series }) {
+      const max = Math.max(1, ...series.map(s => s.total));
+      const w = 560, h = 180, padBottom = 26, barGap = 14;
+      const barW = (w - barGap * (series.length - 1)) / series.length;
+
+      return (
+        <div className="chart-wrap">
+          <svg viewBox={`0 0 ${w} ${h + padBottom}`} width="100%" style={{ overflow: 'visible' }}>
+            {series.map((s, i) => {
+              const barH = (s.total / max) * (h - 20);
+              const x = i * (barW + barGap);
+              const y = h - barH;
+              return (
+                <g key={i}>
+                  <rect x={x} y={y} width={barW} height={barH} rx="4"
+                    fill={i === series.length - 1 ? 'var(--teal)' : 'var(--teal-soft)'}
+                    stroke="var(--teal)" strokeWidth={i === series.length - 1 ? 0 : 1} />
+                  <text x={x + barW / 2} y={y - 8} textAnchor="middle" className="bar-value">
+                    {s.total > 0 ? Math.round(s.total) : ''}
+                  </text>
+                  <text x={x + barW / 2} y={h + 18} textAnchor="middle" className="bar-label">{s.month}</text>
+                </g>
+              );
+            })}
+            <line x1="0" y1={h} x2={w} y2={h} stroke="var(--rule)" strokeWidth="1" />
+          </svg>
+        </div>
+      );
+    }
+
+    /* ---------------- Dashboard page ---------------- */
+    function Dashboard({ invoices, loading, onNavigate, dataInfo }) {
+      const [stats, setStats] = useState(null);
+
+      useEffect(() => {
+        gasCall('getDashboardStats').then(setStats).catch(console.error);
+      }, [invoices.length]);
+
+      const recent = invoices.slice(0, 5);
+
+      return (
+        <div>
+          <div className="stat-grid">
+            <StatCard label="Total revenue" value={fmt(stats && stats.totalRevenue)} sub="Paid invoices" color="var(--teal)" />
+            <StatCard label="Outstanding" value={fmt(stats && stats.outstanding)} sub="Awaiting payment" color="var(--amber)" />
+            <StatCard label="Overdue" value={stats ? stats.overdueCount : '—'} sub={stats ? fmt(stats.overdueAmount) + ' at risk' : ''} color="var(--brick)" />
+            <StatCard label="Invoices" value={stats ? stats.invoiceCount : '—'} sub="All time" color="var(--ink)" />
+          </div>
+
+          <div className="dash-grid">
+            <div className="card">
+              <h3 className="section-title">Revenue, last 6 months</h3>
+              {stats ? <RevenueChart series={stats.monthlySeries} /> : <div className="empty-state">Loading…</div>}
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Recent invoices</h3>
+              {loading ? (
+                <div className="empty-state">Loading…</div>
+              ) : recent.length === 0 ? (
+                <div className="empty-state">
+                  No invoices yet. Create your first one.
+                  <DataDiagnostic info={dataInfo} />
+                </div>
+              ) : (
+                <div>
+                  {recent.map((inv) => (
+                    <div key={inv['Invoice ID']} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--rule)' }}>
+                      <div>
+                        <div className="mono" style={{ fontWeight: 600, fontSize: 13 }}>{inv['Invoice ID']}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>{inv['Customer Name']}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="mono" style={{ fontWeight: 600, fontSize: 13.5 }}>{fmt(inv['Total'])}</div>
+                        <StampBadge status={inv['Status']} dueDate={inv['Due Date']} />
+                      </div>
+                    </div>
+                  ))}
+                  <button className="btn btn-ghost btn-sm" style={{ marginTop: 12, width: '100%' }} onClick={() => onNavigate('invoices')}>
+                    View all invoices
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function StatCard({ label, value, sub, color }) {
+      return (
+        <div className="card stat-card ledger-texture">
+          <div className="stat-accent" style={{ background: color }} />
+          <div className="stat-label">{label}</div>
+          <div className="stat-value">{value}</div>
+          <div className="stat-sub">{sub}</div>
+        </div>
+      );
+    }
+
+    /* ---------------- Invoices list page ---------------- */
+    function DataDiagnostic({ info }) {
+      if (!info) return null;
+      if (info.dataRows > 0) return null;
+      return (
+        <div className="data-diagnostic mono">
+          {info.error
+            ? 'Backend error: ' + info.error
+            : 'Reading from sheet "' + info.sheetName + '" · ' + info.dataRows + ' data rows · ' + info.sheetCount + ' tabs in this spreadsheet'}
+        </div>
+      );
+    }
+
+    function InvoicesList({ invoices, loading, onMarkPaid, onNew, showToast, dataInfo }) {
+      const [query, setQuery] = useState('');
+      const [filter, setFilter] = useState('All');
+      const [preview, setPreview] = useState(null);
+
+      const handlePreviewMark = async (invoiceId) => {
+        const ok = await onMarkPaid(invoiceId);
+        if (ok) setPreview((p) => p ? { ...p, 'Status': 'Paid' } : p);
+      };
+
+      const filtered = useMemo(() => {
+        return invoices.filter((inv) => {
+          const matchesQuery = !query ||
+            (inv['Customer Name'] || '').toLowerCase().includes(query.toLowerCase()) ||
+            (inv['Invoice ID'] || '').toLowerCase().includes(query.toLowerCase());
+          const isOverdue = inv['Status'] !== 'Paid' && inv['Due Date'] && new Date(inv['Due Date']) < new Date();
+          const statusLabel = inv['Status'] === 'Paid' ? 'Paid' : (isOverdue ? 'Overdue' : 'Unpaid');
+          const matchesFilter = filter === 'All' || filter === statusLabel;
+          return matchesQuery && matchesFilter;
+        });
+      }, [invoices, query, filter]);
+
+      return (
+        <div className="card">
+          <div className="table-toolbar">
+            <input className="search-input" placeholder="Search by customer or invoice ID…"
+              value={query} onChange={(e) => setQuery(e.target.value)} />
+            <select className="filter-select" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option>All</option><option>Paid</option><option>Unpaid</option><option>Overdue</option>
+            </select>
+            <button className="btn btn-teal" onClick={onNew}><IconPlus /> New invoice</button>
+          </div>
+
+          {loading ? (
+            <div className="empty-state">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div className="empty-state">
+              {invoices.length === 0
+                ? <span>No invoices found in your sheet yet. Create your first one.</span>
+                : <span>No invoices match. Try a different search, or create a new one.</span>}
+              <DataDiagnostic info={dataInfo} />
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice</th><th>Customer</th><th>Date</th><th>Due</th><th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((inv) => (
+                  <tr key={inv['Invoice ID']}>
+                    <td className="mono" style={{ fontWeight: 600 }}>{inv['Invoice ID']}</td>
+                    <td>{inv['Customer Name']}</td>
+                    <td className="mono" style={{ color: 'var(--ink-soft)' }}>{fmtDate(inv['Date'])}</td>
+                    <td className="mono" style={{ color: 'var(--ink-soft)' }}>{fmtDate(inv['Due Date'])}</td>
+                    <td><StampBadge status={inv['Status']} dueDate={inv['Due Date']} /></td>
+                    <td className="amount">{fmt(inv['Total'])}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setPreview(inv)}>
+                          <IconDoc /> View / Print
+                        </button>
+                        {inv['Status'] !== 'Paid' && (
+                          <button className="btn btn-ghost btn-sm" onClick={() => onMarkPaid(inv['Invoice ID'])}>Mark paid</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {preview && (
+            <InvoiceModal inv={preview} onClose={() => setPreview(null)}
+              onMarkPaid={handlePreviewMark} showToast={showToast} />
+          )}
+        </div>
+      );
+    }
+
+    function fmtDate(v) {
+      if (!v) return '—';
+      const d = new Date(v);
+      if (isNaN(d)) return String(v);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    /* ---------------- Printable A4 invoice document ---------------- */
+    /* Company details are editable from the Settings page (stored in your sheet) */
+    let BUSINESS = {
+      name: 'Ledger Studio',
+      tagline: 'Invoicing for modern business',
+      email: 'billing@ledger.studio',
+      address: '128 Commerce Street, Springfield',
+      footer: 'Thank you for your business'
+    };
+
+    /* Push saved settings into the live BUSINESS + currency used across the app */
+    function applySettings(s) {
+      if (!s) return;
+      CURRENCY_SYMBOL = s['Currency Symbol'] || CURRENCY_SYMBOL;
+      BUSINESS.name = s['Company Name'] || BUSINESS.name;
+      BUSINESS.tagline = s['Tagline'] || BUSINESS.tagline;
+      BUSINESS.email = s['Company Email'] || BUSINESS.email;
+      BUSINESS.address = s['Company Address'] || BUSINESS.address;
+      BUSINESS.footer = s['Footer'] || BUSINESS.footer;
+    }
+
+    function InvoiceSheet({ inv, biz }) {
+      const items = inv['Items'] || [];
+      const subtotal = Number(inv['Subtotal']) || 0;
+      const taxPct = Number(inv['Tax %']) || 0;
+      const taxAmt = Number(inv['Tax Amount']) || 0;
+      const discount = Number(inv['Discount']) || 0;
+      const total = Number(inv['Total']) || (subtotal + taxAmt - discount);
+      const status = inv['Status'];
+
+      const B = biz
+        ? {
+          name: biz['Company Name'], tagline: biz['Tagline'], email: biz['Company Email'],
+          address: biz['Company Address'], footer: biz['Footer']
+        }
+        : BUSINESS;
+      const F = biz ? fmtWith(biz['Currency Symbol'] || CURRENCY_SYMBOL) : fmt;
+
+      return (
+        <div className="a4-sheet">
+          <div className="inv-head">
+            <div>
+              <div className="inv-brand">{B.name}</div>
+              <div className="inv-tagline">{B.tagline}</div>
+            </div>
+            <div className="inv-head-right">
+              <div className="inv-doc-title">Invoice</div>
+              <div className="inv-no mono">{inv['Invoice ID']}</div>
+              <div className="inv-stamp"><StampBadge status={status} dueDate={inv['Due Date']} /></div>
+            </div>
+          </div>
+
+          <div className="inv-fromto">
+            <div className="inv-block">
+              <div className="inv-label">From</div>
+              <div className="inv-org">{B.name}</div>
+              <div>{B.email}</div>
+              <div>{B.address}</div>
+            </div>
+            <div className="inv-block">
+              <div className="inv-label">Bill to</div>
+              <div className="inv-org">{inv['Customer Name'] || '—'}</div>
+              {inv['Customer Email'] ? <div>{inv['Customer Email']}</div> : null}
+              {inv['Customer Phone'] ? <div>{inv['Customer Phone']}</div> : null}
+              {inv['Customer Address'] ? <div>{inv['Customer Address']}</div> : null}
+            </div>
+          </div>
+
+          <div className="inv-meta">
+            <div className="inv-meta-item"><span>Invoice date</span><strong>{fmtDate(inv['Date'])}</strong></div>
+            <div className="inv-meta-item"><span>Due date</span><strong>{fmtDate(inv['Due Date'])}</strong></div>
+            <div className="inv-meta-item"><span>Amount due</span><strong className="mono">{F(total)}</strong></div>
+          </div>
+
+          <div className="inv-items-wrap">
+            <table className="inv-items">
+              <thead>
+                <tr>
+                  <th style={{ width: '5%' }}>#</th><th>Description</th>
+                  <th style={{ width: '10%' }}>Qty</th><th style={{ width: '15%' }}>Rate</th>
+                  <th style={{ width: '18%', textAlign: 'right' }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr><td colSpan="5" style={{ padding: '14px 10px', color: 'var(--ink-soft)' }}>No line items on this invoice.</td></tr>
+                )}
+                {items.map((it, i) => (
+                  <tr key={i}>
+                    <td className="num mono">{i + 1}</td>
+                    <td>{it.description || '—'}</td>
+                    <td className="num mono">{it.qty}</td>
+                    <td className="num mono">{fmtNum(it.price)}</td>
+                    <td className="amt mono">{F((parseFloat(it.qty) || 0) * (parseFloat(it.price) || 0))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="inv-lower">
+            <div className="inv-notes">
+              {inv['Notes'] ? <div><div className="inv-label">Notes</div>{inv['Notes']}</div> : null}
+            </div>
+            <div className="inv-totals">
+              <div className="line"><span>Subtotal</span><span className="mono">{F(subtotal)}</span></div>
+              {taxPct > 0 && <div className="line"><span>Tax ({taxPct}%)</span><span className="mono">{F(taxAmt)}</span></div>}
+              {discount > 0 && <div className="line"><span>Discount</span><span className="mono">−{F(discount)}</span></div>}
+              <div className="line grand"><span>Total due</span><span className="mono">{F(total)}</span></div>
+            </div>
+          </div>
+
+          <div className="inv-foot">
+            <span>{B.footer}</span>
+            <span className="mono">{inv['Invoice ID']} · {fmtDate(inv['Date'])}</span>
+          </div>
+        </div>
+      );
+    }
+
+    /* Live A4 preview scaled to fit its column */
+    function ScaledSheet({ inv, biz }) {
+      const wrapRef = React.useRef(null);
+      const sheetRef = React.useRef(null);
+      const [box, setBox] = useState({ scale: 0.45, height: 560 });
+      const invKey = JSON.stringify([inv['Items'], inv['Customer Name'], inv['Total'], inv['Status'], inv['Due Date'], inv['Notes']]);
+
+      useEffect(() => {
+        const update = () => {
+          const wrap = wrapRef.current, sheet = sheetRef.current;
+          if (!wrap || !sheet) return;
+          const s = wrap.clientWidth / sheet.offsetWidth;
+          setBox({ scale: s, height: sheet.offsetHeight * s });
+        };
+        update();
+        window.addEventListener('resize', update);
+        const t = setTimeout(update, 100);
+        return () => { window.removeEventListener('resize', update); clearTimeout(t); };
+      }, [invKey]);
+
+      return (
+        <div className="mini-preview" ref={wrapRef} style={{ height: box.height }}>
+          <div ref={sheetRef} style={{ transform: `scale(${box.scale})`, transformOrigin: 'top left' }}>
+            <InvoiceSheet inv={inv} biz={biz} />
+          </div>
+        </div>
+      );
+    }
+
+    /* Full-screen viewer + print dialog for a saved invoice */
+    function InvoiceModal({ inv, onClose, onMarkPaid, showToast }) {
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [onClose]);
+
+      return ReactDOM.createPortal(
+        <div className="invoice-modal-overlay" onClick={onClose}>
+          <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="print-toolbar">
+              <div className="toolbar-id">
+                <span className="mono" style={{ fontWeight: 600 }}>{inv['Invoice ID']}</span>
+                <span style={{ color: 'var(--ink-soft)', fontSize: 12.5 }}> — {inv['Customer Name']}</span>
+              </div>
+              <div className="toolbar-actions">
+                {inv['Status'] !== 'Paid' && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => onMarkPaid(inv['Invoice ID'])}>
+                    <IconCheck /> Mark as paid
+                  </button>
+                )}
+                <button className="btn btn-ghost btn-sm" onClick={() => window.print()}><IconPrint /> Print</button>
+                <button className="btn btn-teal btn-sm" onClick={() => { window.print(); showToast('In the print dialog, choose "Save as PDF" as the destination.', 'ok'); }}>
+                  <IconDownload /> Download PDF
+                </button>
+                <button className="btn btn-ghost btn-sm icon-only" onClick={onClose} aria-label="Close"><IconClose /></button>
+              </div>
+            </div>
+            <div className="sheet-scroll">
+              <InvoiceSheet inv={inv} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      );
+    }
+
+    /* ---------------- New invoice page ---------------- */
+    function CardHeader({ icon, title, hint }) {
+      return (
+        <div className="card-header">
+          {icon && <div className="card-ic">{icon}</div>}
+          <div><div className="card-title">{title}</div>{hint && <div className="card-hint">{hint}</div>}</div>
+        </div>
+      );
+    }
+
+    let rowIdSeq = 0;
+    function emptyRow() { rowIdSeq++; return { id: rowIdSeq, description: '', qty: 1, price: 0 }; }
+
+    function InvoiceForm({ onSaved, showToast }) {
+      const [previewId, setPreviewId] = useState('…');
+      const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+      const [dueDate, setDueDate] = useState('');
+      const [customerName, setCustomerName] = useState('');
+      const [customerEmail, setCustomerEmail] = useState('');
+      const [customerPhone, setCustomerPhone] = useState('');
+      const [customerAddress, setCustomerAddress] = useState('');
+      const [items, setItems] = useState([emptyRow()]);
+      const [taxPercent, setTaxPercent] = useState(0);
+      const [discount, setDiscount] = useState(0);
+      const [status, setStatus] = useState('Unpaid');
+      const [notes, setNotes] = useState('');
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => { gasCall('previewNextInvoiceNumber').then(setPreviewId).catch(() => setPreviewId('INV-????')); }, []);
+
+      const subtotal = items.reduce((sum, it) => sum + (parseFloat(it.qty) || 0) * (parseFloat(it.price) || 0), 0);
+      const taxAmount = subtotal * (parseFloat(taxPercent) || 0) / 100;
+      const total = subtotal + taxAmount - (parseFloat(discount) || 0);
+
+      const previewInv = {
+        'Invoice ID': previewId,
+        'Date': date,
+        'Due Date': dueDate,
+        'Customer Name': customerName || 'Your customer',
+        'Customer Email': customerEmail,
+        'Customer Phone': customerPhone,
+        'Customer Address': customerAddress,
+        'Items': items.map(({ description, qty, price }) => ({ description, qty, price })),
+        'Subtotal': subtotal,
+        'Tax %': taxPercent,
+        'Tax Amount': taxAmount,
+        'Discount': discount,
+        'Total': total,
+        'Status': status,
+        'Notes': notes
+      };
+
+      const updateRow = (id, field, val) => setItems(items.map(it => it.id === id ? { ...it, [field]: val } : it));
+      const removeRow = (id) => setItems(items.filter(it => it.id !== id));
+
+      const reset = () => {
+        setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setCustomerAddress('');
+        setNotes(''); setTaxPercent(0); setDiscount(0); setStatus('Unpaid');
+        setItems([emptyRow()]);
+        setDate(new Date().toISOString().split('T')[0]); setDueDate('');
+      };
+
+      const handleSave = async () => {
+        if (!customerName.trim()) { showToast('Please enter a customer name.', 'err'); return; }
+        if (items.length === 0) { showToast('Add at least one line item.', 'err'); return; }
+
+        setSaving(true);
+        try {
+          const res = await gasCall('saveInvoice', {
+            date, dueDate, customerName, customerEmail, customerPhone, customerAddress,
+            items: items.map(({ description, qty, price }) => ({ description, qty, price })),
+            taxPercent, discount, status, notes
+          });
+          if (res.success) {
+            showToast('Saved as ' + res.invoiceId + ' — total ' + fmt(res.total), 'ok');
+            reset();
+            onSaved();
+          } else {
+            showToast(res.error || 'Could not save invoice.', 'err');
+          }
+        } catch (err) {
+          showToast(err.message || 'Something went wrong.', 'err');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div className="form-layout">
+          <div className="form-col-main">
+            <div className="card form-card">
+              <CardHeader icon={<IconDoc />} title="Invoice details" hint="Auto-numbered when you save" />
+              <div className="form-grid">
+                <div className="field">
+                  <label>Invoice number</label>
+                  <span className="invoice-badge">{previewId}</span>
+                </div>
+                <div className="field">
+                  <label>Status</label>
+                  <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <option>Unpaid</option><option>Paid</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Invoice date</label>
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Due date</label>
+                  <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="card form-card">
+              <CardHeader icon={<IconUser />} title="Bill to" hint="Who is receiving this invoice" />
+              <div className="form-grid">
+                <div className="field"><label>Customer name *</label><input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Jane Doe" /></div>
+                <div className="field"><label>Customer email</label><input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="jane@example.com" /></div>
+                <div className="field"><label>Customer phone</label><input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="(555) 000-0000" /></div>
+                <div className="field"><label>Customer address</label><input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="Street, city, ZIP" /></div>
+              </div>
+            </div>
+
+            <div className="card form-card">
+              <CardHeader icon={<IconItems />} title="Line items" hint="Goods or services you are charging for" />
+              <table className="items-table">
+                <thead><tr>
+                  <th style={{ width: '46%' }}>Description</th>
+                  <th style={{ width: '13%' }}>Qty</th>
+                  <th style={{ width: '18%' }}>Rate</th>
+                  <th style={{ width: '17%' }} className="th-right">Amount</th>
+                  <th style={{ width: '30px' }}></th>
+                </tr></thead>
+                <tbody>
+                  {items.map((it) => (
+                    <tr key={it.id}>
+                      <td><input value={it.description} onChange={(e) => updateRow(it.id, 'description', e.target.value)} placeholder="Describe the item or service" /></td>
+                      <td><input type="number" min="0" value={it.qty} onChange={(e) => updateRow(it.id, 'qty', e.target.value)} /></td>
+                      <td><input type="number" min="0" step="0.01" value={it.price} onChange={(e) => updateRow(it.id, 'price', e.target.value)} /></td>
+                      <td className="row-amount">{fmt((parseFloat(it.qty) || 0) * (parseFloat(it.price) || 0))}</td>
+                      <td><button className="remove-btn" onClick={() => removeRow(it.id)}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button className="btn btn-ghost btn-sm" onClick={() => setItems([...items, emptyRow()])}><IconPlus /> Add item</button>
+            </div>
+
+            <div className="card form-card">
+              <CardHeader icon={<IconNotes />} title="Notes" hint="Terms, thank-you note, anything else" />
+              <textarea className="notes-input" rows="3" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Payment terms, thank-you note, etc." />
+            </div>
+          </div>
+
+          <div className="form-col-side">
+            <div className="card form-card">
+              <CardHeader icon={<IconEye />} title="Live preview" hint="A4 invoice, updates as you type" />
+              <ScaledSheet inv={previewInv} />
+            </div>
+
+            <div className="card form-card">
+              <CardHeader icon={<IconCalc />} title="Totals" hint="Auto-calculated from your items" />
+              <div className="totals-box" style={{ marginLeft: 0, width: '100%', marginTop: 0 }}>
+                <div className="line"><span>Subtotal</span><span className="mono">{fmt(subtotal)}</span></div>
+                <div className="line"><span>Tax %</span><input type="number" min="0" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} /></div>
+                <div className="line"><span>Discount</span><input type="number" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} /></div>
+                <div className="line grand"><span>Total</span><span className="mono">{fmt(total)}</span></div>
+              </div>
+              <button className="btn btn-teal" style={{ marginTop: 16, width: '100%' }} disabled={saving} onClick={handleSave}>
+                {saving ? 'Saving…' : 'Save invoice'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------------- Settings page ---------------- */
+    function sampleInvoice(settings) {
+      return {
+        'Invoice ID': (settings['Invoice Prefix'] || 'INV-') + '1001',
+        'Date': new Date(),
+        'Due Date': '',
+        'Customer Name': 'Jane Doe',
+        'Customer Email': 'jane@example.com',
+        'Customer Phone': '(555) 010-2233',
+        'Customer Address': '12 Maple Street, Springfield',
+        'Items': [
+          { description: 'Consulting — web design sprint', qty: 1, price: 850 },
+          { description: 'Hosting setup & migration', qty: 1, price: 120 }
+        ],
+        'Subtotal': 970,
+        'Tax %': 0,
+        'Tax Amount': 0,
+        'Discount': 0,
+        'Total': 970,
+        'Status': 'Unpaid',
+        'Notes': ''
+      };
+    }
+
+    function SettingsForm({ settings, onSave, showToast }) {
+      const [form, setForm] = useState(null);
+      const [saving, setSaving] = useState(false);
+
+      useEffect(() => {
+        if (settings) setForm({ ...settings });
+      }, [settings]);
+
+      if (!form) return <div className="empty-state">Loading settings…</div>;
+
+      const set = (key, val) => setForm({ ...form, [key]: val });
+
+      const save = async () => {
+        setSaving(true);
+        try {
+          const res = await gasCall('saveSettings', form);
+          if (res.success) {
+            applySettings(form);
+            onSave(form);
+            showToast('Settings saved', 'ok');
+          } else {
+            showToast(res.error || 'Could not save settings.', 'err');
+          }
+        } catch (err) {
+          showToast(err.message || 'Could not save settings.', 'err');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div className="form-layout">
+          <div className="form-col-main">
+            <div className="card form-card">
+              <CardHeader icon={<IconSettings />} title="Business profile" hint="Shown on the “From” section of every invoice" />
+              <div className="form-grid">
+                <div className="field"><label>Company name</label><input value={form['Company Name']} onChange={(e) => set('Company Name', e.target.value)} /></div>
+                <div className="field"><label>Tagline</label><input value={form['Tagline']} onChange={(e) => set('Tagline', e.target.value)} /></div>
+                <div className="field"><label>Company email</label><input value={form['Company Email']} onChange={(e) => set('Company Email', e.target.value)} /></div>
+                <div className="field"><label>Company address</label><input value={form['Company Address']} onChange={(e) => set('Company Address', e.target.value)} /></div>
+              </div>
+            </div>
+
+            <div className="card form-card">
+              <CardHeader icon={<IconCalc />} title="Billing preferences" hint="Currency, invoice numbering and data source" />
+              <div className="form-grid">
+                <div className="field"><label>Currency symbol</label><input value={form['Currency Symbol']} onChange={(e) => set('Currency Symbol', e.target.value)} placeholder="$" /></div>
+                <div className="field"><label>Invoice prefix</label><input value={form['Invoice Prefix']} onChange={(e) => set('Invoice Prefix', e.target.value)} placeholder="INV-" /></div>
+                <div className="field" style={{ gridColumn: '1 / -1' }}><label>Footer note</label><input value={form['Footer']} onChange={(e) => set('Footer', e.target.value)} placeholder="Thank you for your business" /></div>
+              </div>
+
+              <div className="link-spreadsheet">
+                <div className="field">
+                  <label>Linked spreadsheet (optional)</label>
+                  <input value={form['Spreadsheet ID']} onChange={(e) => set('Spreadsheet ID', e.target.value)}
+                    placeholder="Paste a Google Sheets URL or ID that holds your invoices" />
+                </div>
+                <p className="link-note">
+                  Leave blank to use <em>this project's</em> spreadsheet. If your invoices live in a <strong>different</strong> spreadsheet,
+                  paste its URL here and the app will read and write there instead. You must have access to it in this Google account.
+                </p>
+              </div>
+
+              <button className="btn btn-teal" style={{ marginTop: 16 }} disabled={saving} onClick={save}>
+                {saving ? 'Saving…' : 'Save settings'}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-col-side">
+            <div className="card form-card">
+              <CardHeader icon={<IconEye />} title="Invoice preview" hint="Live preview of your documents" />
+              <ScaledSheet inv={sampleInvoice(form)} biz={form} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ---------------- App shell ---------------- */
+    function App() {
+      const [page, setPage] = useState('dashboard');
+      const [invoices, setInvoices] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [toast, setToast] = useState(null);
+      const [settings, setSettings] = useState(null);
+      const [previewMode, setPreviewMode] = useState(false);
+      const [dataInfo, setDataInfo] = useState(null);
+
+      const showToast = (msg, kind) => {
+        setToast({ msg, kind });
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      const loadSettings = useCallback(() => {
+        gasCall('getSettings')
+          .then((s) => { applySettings(s); setSettings(s); setPreviewMode(PREVIEW_MODE); })
+          .catch((err) => { setPreviewMode(PREVIEW_MODE); console.error(err); });
+      }, []);
+
+      const refresh = useCallback(() => {
+        setLoading(true);
+        gasCall('getAllInvoices')
+          .then((raw) => {
+            let data = [];
+            try { data = JSON.parse(raw) || []; } catch (e) { data = []; }
+            setInvoices(data);
+            setLoading(false);
+            setPreviewMode(PREVIEW_MODE);
+            if (!(data && data.length)) {
+              gasCall('getDataInfo').then(setDataInfo).catch(() => { });
+            }
+          })
+          .catch((err) => { showToast(err.message || 'Could not load invoices.', 'err'); setLoading(false); setPreviewMode(PREVIEW_MODE); });
+      }, []);
+
+      useEffect(() => { loadSettings(); refresh(); }, [loadSettings, refresh]);
+
+      const handleMarkPaid = async (invoiceId) => {
+        try {
+          const res = await gasCall('updateInvoiceStatus', invoiceId, 'Paid');
+          if (res.success) { showToast(invoiceId + ' marked as paid', 'ok'); refresh(); return true; }
+          showToast(res.error || 'Could not update invoice.', 'err');
+        } catch (err) { showToast(err.message || 'Could not update invoice.', 'err'); }
+        return false;
+      };
+
+      const titles = {
+        dashboard: ['Dashboard', "Today's revenue picture at a glance"],
+        invoices: ['Invoices', 'Search, filter, and manage every invoice'],
+        new: ['New invoice', 'Create an invoice — saving it adds a row to your sheet'],
+        settings: ['Settings', 'Your business profile, currency and numbering']
+      };
+      const pair = titles[page];
+
+      return (
+        <div className="app-shell">
+          <aside className="sidebar">
+            <div className="brand">
+              <span className="brand-mark">Ledger</span>
+            </div>
+            <div className="brand-sub" style={{ padding: '0 8px', marginBottom: 12, marginTop: -12 }}>Invoicing</div>
+
+            <button className={"nav-item" + (page === 'dashboard' ? ' active' : '')} onClick={() => setPage('dashboard')}>
+              <IconDash /><span className="nav-label">Dashboard</span>
+            </button>
+            <button className={"nav-item" + (page === 'invoices' ? ' active' : '')} onClick={() => setPage('invoices')}>
+              <IconList /><span className="nav-label">Invoices</span>
+            </button>
+            <button className={"nav-item" + (page === 'new' ? ' active' : '')} onClick={() => setPage('new')}>
+              <IconPlus /><span className="nav-label">New invoice</span>
+            </button>
+            <button className={"nav-item" + (page === 'settings' ? ' active' : '')} onClick={() => setPage('settings')}>
+              <IconSettings /><span className="nav-label">Settings</span>
+            </button>
+
+            <div className="sidebar-footer">Backed by your Google Sheet.<br />Every save writes a new row.</div>
+          </aside>
+
+          <main className="main">
+            <header className="topbar">
+              <div><div className="page-title">{pair[0]}</div><div className="page-sub">{pair[1]}</div></div>
+              {page !== 'new' && page !== 'settings' && <button className="btn btn-teal" onClick={() => setPage('new')}><IconPlus /> New invoice</button>}
+            </header>
+
+            {previewMode && (
+              <div className="preview-banner">
+                <strong>Preview mode.</strong> You are viewing this page directly, not through the deployed Google Apps Script web app — so data is mocked and <em>nothing is saved</em> to your sheet. Deploy the script (Deploy → New deployment → Web app) and open the URL it gives you.
+              </div>
+            )}
+
+            <div className="content">
+              {page === 'dashboard' && <Dashboard invoices={invoices} loading={loading} onNavigate={setPage} dataInfo={dataInfo} />}
+              {page === 'invoices' && <InvoicesList invoices={invoices} loading={loading} onMarkPaid={handleMarkPaid} onNew={() => setPage('new')} showToast={showToast} dataInfo={dataInfo} />}
+              {page === 'new' && <InvoiceForm onSaved={() => { refresh(); setPage('invoices'); }} showToast={showToast} />}
+              {page === 'settings' && <SettingsForm settings={settings} onSave={(s) => { setSettings(s); refresh(); }} showToast={showToast} />}
+            </div>
+          </main>
+
+          {toast && <div className={"toast " + (toast.kind === 'err' ? 'err' : 'ok')}>{toast.msg}</div>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    if (window.__clearBootTimer) window.__clearBootTimer();
+  </script>
+</body>
+
+</html>
