@@ -439,6 +439,52 @@
       font-size: 14px;
     }
 
+    /* ---- Loading spinner ---- */
+    .spinner {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: -2px;
+      flex-shrink: 0;
+    }
+
+    .spinner-sm {
+      width: 13px;
+      height: 13px;
+      border-width: 2px;
+    }
+
+    .spinner-lg {
+      width: 26px;
+      height: 26px;
+      border-width: 3px;
+    }
+
+    .spinner-ink {
+      border-color: rgba(27, 36, 48, 0.15);
+      border-top-color: var(--teal);
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 44px 20px;
+      color: var(--ink-soft);
+      font-size: 13.5px;
+    }
+
     .data-diagnostic {
       margin: 14px auto 0;
       max-width: 560px;
@@ -979,7 +1025,7 @@
       .invoice-modal-overlay {
         position: static !important;
         background: #fff !important;
-       backdrop-filter: none !important;
+        backdrop-filter: none !important;
         overflow: visible !important;
         display: block !important;
       }
@@ -1142,6 +1188,13 @@
         return {
           totalRevenue: 4820, outstanding: 1260, overdueCount: 2, overdueAmount: 540,
           invoiceCount: 14,
+          todayIncome: 320, todayExpense: 95,
+          dailySeries: [
+            { day: 'Sun 10', income: 0, expense: 40 }, { day: 'Mon 11', income: 210, expense: 25 },
+            { day: 'Tue 12', income: 150, expense: 80 }, { day: 'Wed 13', income: 0, expense: 15 },
+            { day: 'Thu 14', income: 340, expense: 60 }, { day: 'Fri 15', income: 120, expense: 30 },
+            { day: 'Sat 16', income: 320, expense: 95 }
+          ],
           monthlySeries: [
             { month: 'Mar', total: 620 }, { month: 'Apr', total: 910 }, { month: 'May', total: 740 },
             { month: 'Jun', total: 1180 }, { month: 'Jul', total: 860 }, { month: 'Aug', total: 1510 }
@@ -1149,6 +1202,12 @@
         };
       }
       if (fnName === 'getAllInvoices') return JSON.stringify([]);
+      if (fnName === 'getAllExpenses') return JSON.stringify([
+        { 'Expense ID': 'EXP-1002', 'Date': '2026-08-16', 'Category': 'Software', 'Description': 'Hosting subscription', 'Amount': 45, 'Notes': '' },
+        { 'Expense ID': 'EXP-1001', 'Date': '2026-08-15', 'Category': 'Office', 'Description': 'Paper and ink', 'Amount': 30, 'Notes': 'Restock' }
+      ]);
+      if (fnName === 'saveExpense') return { success: true, expenseId: 'EXP-1003', amount: 0 };
+      if (fnName === 'deleteExpense') return { success: true };
       if (fnName === 'previewNextInvoiceNumber') return 'INV-1001';
       if (fnName === 'getSettings') return mockSettings();
       if (fnName === 'getDataInfo') return { sheetName: 'n/a (preview mode)', sheetCount: 0, headerRow: [], dataRows: 0 };
@@ -1241,6 +1300,12 @@
         <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
       </svg>
     );
+    const IconReceipt = (p) => (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
+        <path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-3 2-3-2-3 2-3-2V4a1 1 0 0 1 1-1z" />
+        <path d="M9 8h6M9 12h6M9 16h3" />
+      </svg>
+    );
 
     /* ---------------- Stamp badge (signature element) ---------------- */
     function StampBadge({ status, dueDate }) {
@@ -1281,6 +1346,50 @@
       );
     }
 
+    /* Daily income vs expense — grouped bars, hand-rolled SVG */
+    function DailyChart({ series }) {
+      const max = Math.max(1, ...series.flatMap(s => [s.income, s.expense]));
+      const w = 560, h = 180, padBottom = 30, gap = 18;
+      const groupW = (w - gap * (series.length - 1)) / series.length;
+      const barW = groupW * 0.36;
+
+      return (
+        <div className="chart-wrap">
+          <svg viewBox={`0 0 ${w} ${h + padBottom}`} width="100%" style={{ overflow: 'visible' }}>
+            {series.map((s, i) => {
+              const x = i * (groupW + gap);
+              const incomeH = (s.income / max) * (h - 20);
+              const expenseH = (s.expense / max) * (h - 20);
+              return (
+                <g key={i}>
+                  {s.income > 0 && (
+                    <rect x={x} y={h - incomeH} width={barW} height={incomeH} rx="3"
+                      fill="var(--teal)" />
+                  )}
+                  {s.expense > 0 && (
+                    <rect x={x + barW + 4} y={h - expenseH} width={barW} height={expenseH} rx="3"
+                      fill="var(--amber)" />
+                  )}
+                  <text x={x + barW / 2} y={h - incomeH - 6} textAnchor="middle" className="bar-value">
+                    {s.income > 0 ? Math.round(s.income) : ''}
+                  </text>
+                  <text x={x + barW + 4 + barW / 2} y={h - expenseH - 6} textAnchor="middle" className="bar-value">
+                    {s.expense > 0 ? Math.round(s.expense) : ''}
+                  </text>
+                  <text x={x + barW + 2} y={h + 18} textAnchor="middle" className="bar-label">{s.day}</text>
+                </g>
+              );
+            })}
+            <line x1="0" y1={h} x2={w} y2={h} stroke="var(--rule)" strokeWidth="1" />
+          </svg>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10, fontSize: 12, color: 'var(--ink-soft)' }}>
+            <span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--teal)', borderRadius: 2, marginRight: 5 }} />Income</span>
+            <span><span style={{ display: 'inline-block', width: 10, height: 10, background: 'var(--amber)', borderRadius: 2, marginRight: 5 }} />Expense</span>
+          </div>
+        </div>
+      );
+    }
+
     /* ---------------- Dashboard page ---------------- */
     function Dashboard({ invoices, loading, onNavigate, dataInfo }) {
       const [stats, setStats] = useState(null);
@@ -1294,7 +1403,9 @@
       return (
         <div>
           <div className="stat-grid">
-            <StatCard label="Total revenue" value={fmt(stats && stats.totalRevenue)} sub="Paid invoices" color="var(--teal)" />
+            <StatCard label="Today's income" value={fmt(stats && stats.todayIncome)} sub="Paid invoices today" color="var(--teal)" />
+            <StatCard label="Today's expense" value={fmt(stats && stats.todayExpense)} sub="Expenses logged today" color="var(--amber)" />
+            <StatCard label="Total revenue" value={fmt(stats && stats.totalRevenue)} sub="Paid invoices, all time" color="var(--teal)" />
             <StatCard label="Outstanding" value={fmt(stats && stats.outstanding)} sub="Awaiting payment" color="var(--amber)" />
             <StatCard label="Overdue" value={stats ? stats.overdueCount : '—'} sub={stats ? fmt(stats.overdueAmount) + ' at risk' : ''} color="var(--brick)" />
             <StatCard label="Invoices" value={stats ? stats.invoiceCount : '—'} sub="All time" color="var(--ink)" />
@@ -1303,13 +1414,13 @@
           <div className="dash-grid">
             <div className="card">
               <h3 className="section-title">Revenue, last 6 months</h3>
-              {stats ? <RevenueChart series={stats.monthlySeries} /> : <div className="empty-state">Loading…</div>}
+              {stats ? <RevenueChart series={stats.monthlySeries} /> : <LoadingState />}
             </div>
 
             <div className="card">
               <h3 className="section-title">Recent invoices</h3>
               {loading ? (
-                <div className="empty-state">Loading…</div>
+                <LoadingState />
               ) : recent.length === 0 ? (
                 <div className="empty-state">
                   No invoices yet. Create your first one.
@@ -1336,6 +1447,11 @@
               )}
             </div>
           </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3 className="section-title">Daily income vs expense, last 7 days</h3>
+            {stats ? <DailyChart series={stats.dailySeries} /> : <LoadingState />}
+          </div>
         </div>
       );
     }
@@ -1347,6 +1463,23 @@
           <div className="stat-label">{label}</div>
           <div className="stat-value">{value}</div>
           <div className="stat-sub">{sub}</div>
+        </div>
+      );
+    }
+
+    /* ---------------- Loading spinner helpers ---------------- */
+    function Spinner({ small, ink }) {
+      return (
+        <span className={'spinner' + (small ? ' spinner-sm' : '') + (ink ? ' spinner-ink' : '')}
+          aria-hidden="true" />
+      );
+    }
+
+    function LoadingState({ label }) {
+      return (
+        <div className="loading-row">
+          <Spinner ink />
+          <span>{label || 'Loading…'}</span>
         </div>
       );
     }
@@ -1368,9 +1501,12 @@
       const [query, setQuery] = useState('');
       const [filter, setFilter] = useState('All');
       const [preview, setPreview] = useState(null);
+      const [markingId, setMarkingId] = useState(null);
 
       const handlePreviewMark = async (invoiceId) => {
+        setMarkingId(invoiceId);
         const ok = await onMarkPaid(invoiceId);
+        setMarkingId(null);
         if (ok) setPreview((p) => p ? { ...p, 'Status': 'Paid' } : p);
       };
 
@@ -1398,7 +1534,7 @@
           </div>
 
           {loading ? (
-            <div className="empty-state">Loading…</div>
+            <LoadingState />
           ) : filtered.length === 0 ? (
             <div className="empty-state">
               {invoices.length === 0
@@ -1429,7 +1565,10 @@
                           <IconDoc /> View / Print
                         </button>
                         {inv['Status'] !== 'Paid' && (
-                          <button className="btn btn-ghost btn-sm" onClick={() => onMarkPaid(inv['Invoice ID'])}>Mark paid</button>
+                          <button className="btn btn-ghost btn-sm" disabled={markingId === inv['Invoice ID']}
+                            onClick={() => handlePreviewMark(inv['Invoice ID'])}>
+                            {markingId === inv['Invoice ID'] ? <><Spinner small /> Marking…</> : 'Mark paid'}
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1440,7 +1579,8 @@
           )}
           {preview && (
             <InvoiceModal inv={preview} onClose={() => setPreview(null)}
-              onMarkPaid={handlePreviewMark} showToast={showToast} />
+              onMarkPaid={handlePreviewMark} showToast={showToast}
+              pending={markingId === preview['Invoice ID']} />
           )}
         </div>
       );
@@ -1451,6 +1591,13 @@
       const d = new Date(v);
       if (isNaN(d)) return String(v);
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    function todayLocalDate() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
 
     /* ---------------- Printable A4 invoice document ---------------- */
@@ -1603,7 +1750,7 @@
     }
 
     /* Full-screen viewer + print dialog for a saved invoice */
-    function InvoiceModal({ inv, onClose, onMarkPaid, showToast }) {
+    function InvoiceModal({ inv, onClose, onMarkPaid, showToast, pending }) {
       useEffect(() => {
         const onKey = (e) => { if (e.key === 'Escape') onClose(); };
         window.addEventListener('keydown', onKey);
@@ -1620,8 +1767,8 @@
               </div>
               <div className="toolbar-actions">
                 {inv['Status'] !== 'Paid' && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => onMarkPaid(inv['Invoice ID'])}>
-                    <IconCheck /> Mark as paid
+                  <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => onMarkPaid(inv['Invoice ID'])}>
+                    {pending ? <><Spinner small /> Marking…</> : <><IconCheck /> Mark as paid</>}
                   </button>
                 )}
                 <button className="btn btn-ghost btn-sm" onClick={() => window.print()}><IconPrint /> Print</button>
@@ -1655,7 +1802,7 @@
 
     function InvoiceForm({ onSaved, showToast }) {
       const [previewId, setPreviewId] = useState('…');
-      const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+      const [date, setDate] = useState(todayLocalDate());
       const [dueDate, setDueDate] = useState('');
       const [customerName, setCustomerName] = useState('');
       const [customerEmail, setCustomerEmail] = useState('');
@@ -1699,7 +1846,7 @@
         setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setCustomerAddress('');
         setNotes(''); setTaxPercent(0); setDiscount(0); setStatus('Unpaid');
         setItems([emptyRow()]);
-        setDate(new Date().toISOString().split('T')[0]); setDueDate('');
+        setDate(todayLocalDate()); setDueDate('');
       };
 
       const handleSave = async () => {
@@ -1810,7 +1957,7 @@
                 <div className="line grand"><span>Total</span><span className="mono">{fmt(total)}</span></div>
               </div>
               <button className="btn btn-teal" style={{ marginTop: 16, width: '100%' }} disabled={saving} onClick={handleSave}>
-                {saving ? 'Saving…' : 'Save invoice'}
+                {saving ? <><Spinner /> Saving…</> : 'Save invoice'}
               </button>
             </div>
           </div>
@@ -1850,7 +1997,7 @@
         if (settings) setForm({ ...settings });
       }, [settings]);
 
-      if (!form) return <div className="empty-state">Loading settings…</div>;
+      if (!form) return <LoadingState label="Loading settings…" />;
 
       const set = (key, val) => setForm({ ...form, [key]: val });
 
@@ -1906,7 +2053,7 @@
               </div>
 
               <button className="btn btn-teal" style={{ marginTop: 16 }} disabled={saving} onClick={save}>
-                {saving ? 'Saving…' : 'Save settings'}
+                {saving ? <><Spinner /> Saving…</> : 'Save settings'}
               </button>
             </div>
           </div>
@@ -1921,11 +2068,143 @@
       );
     }
 
+    /* ---------------- Expenses page ---------------- */
+    const EXPENSE_CATEGORIES = ['Office', 'Travel/Commute', 'Supplies', 'Utilities', 'Software', 'Marketing', 'Payroll', 'Other'];
+
+    function ExpensesPage({ expenses, loading, onAdd, onDelete, showToast }) {
+      const [date, setDate] = useState(todayLocalDate());
+      const [category, setCategory] = useState('Office');
+      const [description, setDescription] = useState('');
+      const [amount, setAmount] = useState('');
+      const [notes, setNotes] = useState('');
+      const [saving, setSaving] = useState(false);
+      const [query, setQuery] = useState('');
+      const [deletingId, setDeletingId] = useState(null);
+
+      const handleDelete = async (id) => {
+        setDeletingId(id);
+        await onDelete(id);
+        setDeletingId(null);
+      };
+
+      const filtered = useMemo(() => {
+        const q = query.toLowerCase();
+        return expenses.filter((e) =>
+          !q ||
+          (e['Category'] || '').toLowerCase().includes(q) ||
+          (e['Description'] || '').toLowerCase().includes(q) ||
+          (e['Expense ID'] || '').toLowerCase().includes(q)
+        );
+      }, [expenses, query]);
+
+      const total = useMemo(() => expenses.reduce((s, e) => s + (Number(e['Amount']) || 0), 0), [expenses]);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!category.trim()) { showToast('Choose a category.', 'err'); return; }
+        if (!description.trim()) { showToast('Enter a description.', 'err'); return; }
+        const amt = parseFloat(amount);
+        if (isNaN(amt) || amt <= 0) { showToast('Enter a valid amount.', 'err'); return; }
+        setSaving(true);
+        try {
+          const res = await onAdd({ date, category, description, amount: amt, notes });
+          if (res && res.success) {
+            showToast('Expense saved as ' + res.expenseId, 'ok');
+            setDescription(''); setAmount(''); setNotes('');
+          } else {
+            showToast((res && res.error) || 'Could not save expense.', 'err');
+          }
+        } catch (err) {
+          showToast(err.message || 'Could not save expense.', 'err');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div className="form-layout">
+          <div className="form-col-main">
+            <div className="card">
+              <div className="table-toolbar">
+                <input className="search-input" placeholder="Search by description, category or ID…"
+                  value={query} onChange={(e) => setQuery(e.target.value)} />
+                <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>Total {fmt(total)}</span>
+              </div>
+
+              {loading ? (
+                <LoadingState />
+              ) : filtered.length === 0 ? (
+                <div className="empty-state">
+                  {expenses.length === 0
+                    ? 'No expenses yet. Add your first one on the right.'
+                    : 'No expenses match your search.'}
+                </div>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Expense</th><th>Date</th><th>Category</th><th>Description</th>
+                      <th style={{ textAlign: 'right' }}>Amount</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((e) => (
+                      <tr key={e['Expense ID']}>
+                        <td className="mono" style={{ fontWeight: 600 }}>{e['Expense ID']}</td>
+                        <td className="mono" style={{ color: 'var(--ink-soft)' }}>{fmtDate(e['Date'])}</td>
+                        <td><span className="stamp" style={{ transform: 'none', textTransform: 'none', letterSpacing: '0.02em' }}>{e['Category'] || 'Other'}</span></td>
+                        <td>
+                          {e['Description']}
+                          {e['Notes'] ? <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{e['Notes']}</div> : null}
+                        </td>
+                        <td className="amount">{fmt(e['Amount'])}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button className="btn btn-ghost btn-sm" disabled={deletingId === e['Expense ID']}
+                            onClick={() => handleDelete(e['Expense ID'])}>
+                            {deletingId === e['Expense ID'] ? <><Spinner small /> Deleting…</> : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          <div className="form-col-side">
+            <div className="card form-card">
+              <CardHeader icon={<IconReceipt />} title="Add expense" hint="Saves a row to your Expenses tab" />
+              <form onSubmit={handleSubmit}>
+                <div className="form-grid">
+                  <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+                  <div className="field">
+                    <label>Category</label>
+                    <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                      {EXPENSE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="field"><label>Description *</label><input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What was it for?" /></div>
+                <div className="field"><label>Amount *</label><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></div>
+                <div className="field"><label>Notes</label><textarea className="notes-input" rows="2" value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+                <button className="btn btn-teal" style={{ width: '100%', marginTop: 8 }} disabled={saving} type="submit">
+                  {saving ? <><Spinner /> Saving…</> : 'Add expense'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     /* ---------------- App shell ---------------- */
     function App() {
       const [page, setPage] = useState('dashboard');
       const [invoices, setInvoices] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [expenses, setExpenses] = useState([]);
+      const [expensesLoading, setExpensesLoading] = useState(true);
       const [toast, setToast] = useState(null);
       const [settings, setSettings] = useState(null);
       const [previewMode, setPreviewMode] = useState(false);
@@ -1958,7 +2237,19 @@
           .catch((err) => { showToast(err.message || 'Could not load invoices.', 'err'); setLoading(false); setPreviewMode(PREVIEW_MODE); });
       }, []);
 
-      useEffect(() => { loadSettings(); refresh(); }, [loadSettings, refresh]);
+      const refreshExpenses = useCallback(() => {
+        setExpensesLoading(true);
+        gasCall('getAllExpenses')
+          .then((raw) => {
+            let data = [];
+            try { data = JSON.parse(raw) || []; } catch (e) { data = []; }
+            setExpenses(data);
+            setExpensesLoading(false);
+          })
+          .catch((err) => { showToast(err.message || 'Could not load expenses.', 'err'); setExpensesLoading(false); });
+      }, []);
+
+      useEffect(() => { loadSettings(); refresh(); refreshExpenses(); }, [loadSettings, refresh, refreshExpenses]);
 
       const handleMarkPaid = async (invoiceId) => {
         try {
@@ -1969,9 +2260,28 @@
         return false;
       };
 
+      const handleAddExpense = async (data) => {
+        try {
+          const res = await gasCall('saveExpense', data);
+          if (res && res.success) refreshExpenses();
+          return res;
+        } catch (err) {
+          return { success: false, error: err.message || 'Could not save expense.' };
+        }
+      };
+
+      const handleDeleteExpense = async (expenseId) => {
+        try {
+          const res = await gasCall('deleteExpense', expenseId);
+          if (res.success) { showToast(expenseId + ' deleted', 'ok'); refreshExpenses(); }
+          else showToast(res.error || 'Could not delete expense.', 'err');
+        } catch (err) { showToast(err.message || 'Could not delete expense.', 'err'); }
+      };
+
       const titles = {
-        dashboard: ['Dashboard', "Today's revenue picture at a glance"],
+        dashboard: ['Dashboard', "Today's revenue and spending at a glance"],
         invoices: ['Invoices', 'Search, filter, and manage every invoice'],
+        expenses: ['Expenses', 'Log and track your business spending'],
         new: ['New invoice', 'Create an invoice — saving it adds a row to your sheet'],
         settings: ['Settings', 'Your business profile, currency and numbering']
       };
@@ -1990,6 +2300,9 @@
             </button>
             <button className={"nav-item" + (page === 'invoices' ? ' active' : '')} onClick={() => setPage('invoices')}>
               <IconList /><span className="nav-label">Invoices</span>
+            </button>
+            <button className={"nav-item" + (page === 'expenses' ? ' active' : '')} onClick={() => setPage('expenses')}>
+              <IconReceipt /><span className="nav-label">Expenses</span>
             </button>
             <button className={"nav-item" + (page === 'new' ? ' active' : '')} onClick={() => setPage('new')}>
               <IconPlus /><span className="nav-label">New invoice</span>
@@ -2016,6 +2329,7 @@
             <div className="content">
               {page === 'dashboard' && <Dashboard invoices={invoices} loading={loading} onNavigate={setPage} dataInfo={dataInfo} />}
               {page === 'invoices' && <InvoicesList invoices={invoices} loading={loading} onMarkPaid={handleMarkPaid} onNew={() => setPage('new')} showToast={showToast} dataInfo={dataInfo} />}
+              {page === 'expenses' && <ExpensesPage expenses={expenses} loading={expensesLoading} onAdd={handleAddExpense} onDelete={handleDeleteExpense} showToast={showToast} />}
               {page === 'new' && <InvoiceForm onSaved={() => { refresh(); setPage('invoices'); }} showToast={showToast} />}
               {page === 'settings' && <SettingsForm settings={settings} onSave={(s) => { setSettings(s); refresh(); }} showToast={showToast} />}
             </div>

@@ -9,6 +9,10 @@
 const SHEET_NAME = 'Invoices';
 const CONFIG_SHEET = 'Config';
 const SETTINGS_SHEET = 'Settings';
+const EXPENSE_SHEET = 'Expenses';
+const EXPENSE_HEADERS = [
+  'Expense ID', 'Date', 'Category', 'Description', 'Amount', 'Notes', 'Created At'
+];
 const INVOICE_HEADERS = [
   'Invoice ID', 'Date', 'Due Date', 'Customer Name', 'Customer Email',
   'Customer Phone', 'Customer Address', 'Items JSON', 'Subtotal',
@@ -301,6 +305,119 @@ function updateInvoiceStatus(invoiceId, status) {
   }
 }
 
+/* ---------------- Expenses ---------------- */
+
+/** Finds (or creates) the tab that holds expense rows. */
+function getExpenseSheet() {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(EXPENSE_SHEET);
+  if (sheet) return sheet;
+  const created = ss.insertSheet(EXPENSE_SHEET);
+  created.appendRow(EXPENSE_HEADERS);
+  created.setFrozenRows(1);
+  return created;
+}
+
+/** Auto-incrementing expense number, e.g. EXP-1001 (shares the Config tab) */
+function getNextExpenseNumber() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = getSpreadsheet();
+    let configSheet = ss.getSheetByName(CONFIG_SHEET);
+    if (!configSheet) {
+      configSheet = ss.insertSheet(CONFIG_SHEET);
+      configSheet.getRange('A1').setValue('LastInvoiceNumber');
+      configSheet.getRange('B1').setValue(1000);
+      configSheet.hideSheet();
+    }
+    const data = configSheet.getDataRange().getValues();
+    let row = -1, next = 1000;
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0]) === 'LastExpenseNumber') {
+        row = i + 1;
+        next = Number(data[i][1]) || 1000;
+      }
+    }
+    next += 1;
+    if (row > 0) configSheet.getRange(row, 2).setValue(next);
+    else configSheet.appendRow(['LastExpenseNumber', next]);
+    return 'EXP-' + next;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Saves an expense submitted from the client.
+ * expenseData: { date, category, description, amount, notes }
+ */
+function saveExpense(expenseData) {
+  try {
+    if (!expenseData || !expenseData.category || !expenseData.description) {
+      throw new Error('Category and description are required.');
+    }
+    const amount = parseFloat(expenseData.amount);
+    if (isNaN(amount) || amount < 0) {
+      throw new Error('Enter a valid amount.');
+    }
+
+    const expenseId = getNextExpenseNumber();
+    getExpenseSheet().appendRow([
+      expenseId,
+      expenseData.date || new Date(),
+      expenseData.category,
+      expenseData.description,
+      amount,
+      expenseData.notes || '',
+      new Date()
+    ]);
+
+    return { success: true, expenseId: expenseId, amount: amount };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/** Internal: returns expenses as a real array (for server-side use only) */
+function getAllExpensesRaw() {
+  const sheet = getExpenseSheet();
+  const data = sheet.getDataRange().getValues();
+  if (!data.length) return [];
+  const firstCell = String(data[0][0] || '').trim();
+  const hasHeader = !/^EXP-/i.test(firstCell);
+  const rows = hasHeader ? data.slice(1) : data;
+  if (rows.length === 0) return [];
+  return rows.map(function (row) {
+    const obj = {};
+    EXPENSE_HEADERS.forEach(function (h, i) { obj[h] = row[i]; });
+    return obj;
+  }).reverse();
+}
+
+/** Client-facing: same data as a JSON string */
+function getAllExpenses() {
+  return JSON.stringify(getAllExpensesRaw());
+}
+
+/** Removes an expense row by ID */
+function deleteExpense(expenseId) {
+  try {
+    const sheet = getExpenseSheet();
+    const data = sheet.getDataRange().getValues();
+    const idCol = EXPENSE_HEADERS.indexOf('Expense ID');
+    for (let r = 1; r < data.length; r++) {
+      if (String(data[r][idCol]) === String(expenseId)) {
+        sheet.deleteRow(r + 1);
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Expense not found' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 /* ---------------- Settings (company name, currency, etc.) ---------------- */
 
 function getSettingsSheet() {
@@ -352,9 +469,10 @@ function saveSettings(settings) {
   }
 }
 
-/** Aggregated numbers + a 6-month revenue series for the dashboard */
+/** Aggregated numbers + monthly revenue series + daily income/expense for the dashboard */
 function getDashboardStats() {
   const invoices = getAllInvoicesRaw();   // আগে ছিল getAllInvoices()
+  const expenses = getAllExpensesRaw();
   const now = new Date();
   const tz = Session.getScriptTimeZone();
 
@@ -393,12 +511,52 @@ function getDashboardStats() {
     });
   }
 
+  /* Daily income = paid invoices dated that day; expense = expenses dated that day */
+  const daily = {};
+
+  invoices.forEach(function (inv) {
+    if (inv['Status'] !== 'Paid') return;
+    const d = inv['Date'] ? new Date(inv['Date']) : new Date(inv['Created At']);
+    if (d && !isNaN(d)) {
+      const key = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+      daily[key] = daily[key] || { income: 0, expense: 0 };
+      daily[key].income += Number(inv['Total']) || 0;
+    }
+  });
+
+  expenses.forEach(function (exp) {
+    const d = exp['Date'] ? new Date(exp['Date']) : null;
+    if (d && !isNaN(d)) {
+      const key = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+      daily[key] = daily[key] || { income: 0, expense: 0 };
+      daily[key].expense += Number(exp['Amount']) || 0;
+    }
+  });
+
+  const todayKey = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  const today = daily[todayKey] || { income: 0, expense: 0 };
+
+  const dailySeries = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+    const day = daily[key] || { income: 0, expense: 0 };
+    dailySeries.push({
+      day: Utilities.formatDate(d, tz, 'EEE dd'),
+      income: day.income,
+      expense: day.expense
+    });
+  }
+
   return {
     totalRevenue: totalRevenue,
     outstanding: outstanding,
     overdueCount: overdueCount,
     overdueAmount: overdueAmount,
     invoiceCount: invoices.length,
-    monthlySeries: series
+    monthlySeries: series,
+    todayIncome: today.income,
+    todayExpense: today.expense,
+    dailySeries: dailySeries
   };
 }
